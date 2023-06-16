@@ -1,7 +1,8 @@
 
 import htdb
 
-def test():
+
+def test_1():
     db = htdb.Htdb()
 
     for i in range(100):
@@ -31,3 +32,15 @@ def test():
         assert False
 
     assert len(db) == 100
+
+
+def test_2():
+    print()
+
+    db = htdb.Htdb()
+
+    for _ in range(2):
+        for i in range(10000):
+            db.set(i, "zzzz")
+        for i in range(10000):
+            db.remove(i)
