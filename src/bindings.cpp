@@ -49,48 +49,65 @@ public:
     }
 
     auto get(py::object key_) -> py::object {
+        xobj *valobj = NULL;
+
         if (py::isinstance<py::int_>(key_)) {
             uint64_t key = key_.cast<uint64_t>();
-
-            xobj *obj = xdbGetByInt(_db, key);
-
-            if (obj == NULL) {
-                throw py::key_error("Key not found");
-            }
-
-            if (obj->type == XOBJ_TYPE_INT) {
-                uint64_t value = *(uint64_t *)obj->data;
-                return py::cast(value);
-            } else if (obj->type == XOBJ_TYPE_BYTES) {
-                std::string value = std::string((char *)obj->data, obj->len);
-                return py::bytes(value);
-            } else {
-                throw py::key_error("err: unknown value type");
-            }
+            valobj = xdbGetByInt(_db, key);
 
         } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
             std::string key = key_.cast<std::string>();
+            valobj = xdbGetByBytes(_db, key.c_str(), static_cast<uint8_t>(key.length()));
 
-            xobj *obj = xdbGetByBytes(_db, key.c_str(), static_cast<uint8_t>(key.length()));
+        } else {
+            throw py::type_error("invalid key type");
+        }
 
-            if (obj == NULL) {
-                throw py::key_error("Key not found");
-            }
+        if (valobj == NULL) {
+            throw py::key_error("Key not found");
+        }
 
-            if (obj->type == XOBJ_TYPE_INT) {
-                uint64_t value = *(uint64_t *)obj->data;
-                return py::cast(value);
-            } else if (obj->type == XOBJ_TYPE_BYTES) {
-                std::string value = std::string((char *)obj->data, obj->len);
-                return py::bytes(value);
-            } else {
-                throw std::runtime_error("err: unknown value type");
-            }
+        if (valobj->type == XOBJ_TYPE_INT) {
+            uint64_t value = *(uint64_t *)valobj->data;
+            return py::cast(value);
+        } else if (valobj->type == XOBJ_TYPE_BYTES) {
+            std::string value = std::string((char *)valobj->data, valobj->len);
+            return py::bytes(value);
+        } else {
+            throw std::runtime_error("err: unknown value type");
+        }
+    }
+
+    auto has(py::object key_) -> bool {
+        if (py::isinstance<py::int_>(key_)) {
+            uint64_t key = key_.cast<uint64_t>();
+            bool ret = static_cast<bool>(xdbHasInt(_db, key));
+            return ret;
+
+        } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
+            std::string key = key_.cast<std::string>();
+            bool ret = static_cast<bool>(xdbHasBytes(_db, key.c_str(), static_cast<uint8_t>(key.length())));
+            return ret;
 
         } else {
             throw py::type_error("invalid key type");
         }
     }
+
+    auto remove(py::object key_) -> void {
+        if (py::isinstance<py::int_>(key_)) {
+            uint64_t key = key_.cast<uint64_t>();
+            xdbDelInt(_db, key);
+
+        } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
+            std::string key = key_.cast<std::string>();
+            xdbDelBytes(_db, key.c_str(), static_cast<uint8_t>(key.length()));
+
+        } else {
+            throw py::type_error("invalid key type");
+        }
+    }
+
 private:
     xdb *_db;
 };
@@ -100,9 +117,9 @@ PYBIND11_MODULE(htdb, m) {
         .def(py::init<>())
         .def("set", &Htdb::set)
         .def("get", &Htdb::get)
-        .def("__len__",
-            [](const Htdb &db) { return db.getSize(); },
-            "getSize"
-        )
+        .def("has", &Htdb::has)
+        .def("remove", &Htdb::remove)
+        .def("__len__", &Htdb::getSize)
+        .def("__contains__", &Htdb::has)
     ;
 }

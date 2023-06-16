@@ -7,10 +7,27 @@ def test():
     for i in range(100):
         db.set(i, "zzzz")
 
-    db.set(101, "xxxx")
-    assert db.get(101) == b"xxxx"
+    assert ("101" in db) == False
+    db.set("101", "yyyy")
+    assert db.get("101") == b"yyyy"
+    assert ("101" in db) == True
 
-    db.set("102", "yyyy")
-    assert db.get("102") == b"yyyy"
+    db.remove("101")
 
-    assert len(db) == 102
+    try:
+        db.get("101")
+    except KeyError:
+        ...
+    except Exception as e:
+        raise e
+    else:
+        assert False
+
+    try:
+        db.get(101)
+    except KeyError:
+        ...
+    else:
+        assert False
+
+    assert len(db) == 100
