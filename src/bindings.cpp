@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 namespace py = pybind11;
+using namespace pybind11::literals;
 
 
 class Htdb {
@@ -25,7 +26,7 @@ public:
 
             if (py::isinstance<py::bytes>(value_) || py::isinstance<py::str>(value_)) {
                 std::string value = value_.cast<std::string>();
-                _xdbSetIntBytes(_db, key, value.c_str(), static_cast<uint8_t>(value.length()));
+                _xdbSetIntBytes(_db, key, value.c_str(), static_cast<xobjlen_t>(value.length()));
             } else if (py::isinstance<py::int_>(value_)) {
                 uint64_t value = value_.cast<uint64_t>();
                 _xdbSetIntInt(_db, key, value);
@@ -38,7 +39,7 @@ public:
 
             if (py::isinstance<py::bytes>(value_) || py::isinstance<py::str>(value_)) {
                 std::string value = value_.cast<std::string>();
-                _xdbSetBytesBytes(_db, key.c_str(), static_cast<uint8_t>(key.length()), value.c_str(), static_cast<uint8_t>(value.length()));
+                _xdbSetBytesBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length()), value.c_str(), static_cast<xobjlen_t>(value.length()));
             } else {
                 throw py::type_error("invalid value type");
             }
@@ -57,7 +58,7 @@ public:
 
         } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
             std::string key = key_.cast<std::string>();
-            valobj = xdbGetByBytes(_db, key.c_str(), static_cast<uint8_t>(key.length()));
+            valobj = xdbGetByBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length()));
 
         } else {
             throw py::type_error("invalid key type");
@@ -86,7 +87,7 @@ public:
 
         } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
             std::string key = key_.cast<std::string>();
-            bool ret = static_cast<bool>(xdbHasBytes(_db, key.c_str(), static_cast<uint8_t>(key.length())));
+            bool ret = static_cast<bool>(xdbHasBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length())));
             return ret;
 
         } else {
@@ -101,13 +102,29 @@ public:
 
         } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
             std::string key = key_.cast<std::string>();
-            xdbDelBytes(_db, key.c_str(), static_cast<uint8_t>(key.length()));
+            xdbDelBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length()));
 
         } else {
             throw py::type_error("invalid key type");
         }
     }
 
+    auto dump(std::string filename) -> void {
+        if (filename.empty()) {
+            xdbDump(_db, stdout);
+            std::cout << std::endl;
+            return;
+        }
+        FILE *fp = fopen(filename.c_str(), "wb");
+        xdbDump(_db, fp);
+        fclose(fp);
+    }
+
+    auto load(std::string filename) -> void {
+        FILE *fp = fopen(filename.c_str(), "rb");
+        xdbLoad(_db, fp);
+        fclose(fp);
+    }
 private:
     xdb *_db;
 };
@@ -119,6 +136,8 @@ PYBIND11_MODULE(htdb, m) {
         .def("get", &Htdb::get)
         .def("has", &Htdb::has)
         .def("remove", &Htdb::remove)
+        .def("dump", &Htdb::dump, "filename"_a = std::string())
+        .def("load", &Htdb::load, "filename"_a)
         .def("__len__", &Htdb::getSize)
         .def("__contains__", &Htdb::has)
     ;
