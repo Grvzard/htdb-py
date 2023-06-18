@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl/filesystem.h>
 #include "htdb.h"
 #include <iostream>
 #include <stdio.h>
@@ -120,10 +121,18 @@ public:
         fclose(fp);
     }
 
+    auto dump(std::filesystem::path filename) -> void {
+        dump(filename.string());
+    }
+
     auto load(std::string filename) -> void {
         FILE *fp = fopen(filename.c_str(), "rb");
         xdbLoad(_db, fp);
         fclose(fp);
+    }
+
+    auto load(std::filesystem::path filename) -> void {
+        load(filename.string());
     }
 private:
     xdb *_db;
@@ -136,8 +145,10 @@ PYBIND11_MODULE(htdb, m) {
         .def("get", &Htdb::get)
         .def("has", &Htdb::has)
         .def("remove", &Htdb::remove)
-        .def("dump", &Htdb::dump, "filename"_a = std::string())
-        .def("load", &Htdb::load, "filename"_a)
+        .def("dump", static_cast<void (Htdb::*)(std::string)>(&Htdb::dump), "filename"_a = "")
+        .def("dump", static_cast<void (Htdb::*)(std::filesystem::path)>(&Htdb::dump), "filename"_a)
+        .def("load", static_cast<void (Htdb::*)(std::string)>(&Htdb::load), "filename"_a)
+        .def("load", static_cast<void (Htdb::*)(std::filesystem::path)>(&Htdb::load), "filename"_a)
         .def("__len__", &Htdb::getSize)
         .def("__contains__", &Htdb::has)
     ;
