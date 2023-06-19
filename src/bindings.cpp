@@ -8,6 +8,19 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 
+auto _xobj2pyobj(xobj *obj) -> py::object {
+    py::object pyobj;
+    if (obj->type == XOBJ_TYPE_INT) {
+        pyobj = py::int_(*(uint64_t *)obj->data);
+    } else if (obj->type == XOBJ_TYPE_BYTES) {
+        pyobj = py::bytes((char *)obj->data, obj->len);
+    } else {
+        throw std::runtime_error("err: unknown value type");
+    }
+    return pyobj;
+}
+
+
 class Htdb {
 public:
     Htdb() {
@@ -134,6 +147,22 @@ public:
     auto load(std::filesystem::path filename) -> void {
         load(filename.string());
     }
+
+    auto getDataList() -> py::list {
+        py::list ret;
+
+        DictIter iter = {_db->table, 0};
+        xobj *keyobj, *valobj;
+
+        for (; dictIterNext(&iter, (void **)&keyobj, (void **)&valobj);) {
+            py::object key = _xobj2pyobj(keyobj);
+            py::object value = _xobj2pyobj(valobj);
+
+            ret.append(py::make_tuple(key, value));
+        }
+
+        return ret;
+    }
 private:
     xdb *_db;
 };
@@ -151,5 +180,6 @@ PYBIND11_MODULE(htdb, m) {
         .def("load", static_cast<void (Htdb::*)(std::filesystem::path)>(&Htdb::load), "filename"_a)
         .def("__len__", &Htdb::getSize)
         .def("__contains__", &Htdb::has)
+        .def("list", &Htdb::getDataList)
     ;
 }
