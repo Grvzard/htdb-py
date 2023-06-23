@@ -54,6 +54,9 @@ public:
             if (py::isinstance<py::bytes>(value_) || py::isinstance<py::str>(value_)) {
                 std::string value = value_.cast<std::string>();
                 _xdbSetBytesBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length()), value.c_str(), static_cast<xobjlen_t>(value.length()));
+            } else if (py::isinstance<py::int_>(value_)) {
+                uint64_t value = value_.cast<uint64_t>();
+                _xdbSetBytesInt(_db, key.c_str(), static_cast<xobjlen_t>(key.length()), value);
             } else {
                 throw py::type_error("invalid value type");
             }
@@ -69,11 +72,9 @@ public:
         if (py::isinstance<py::int_>(key_)) {
             uint64_t key = key_.cast<uint64_t>();
             valobj = xdbGetByInt(_db, key);
-
         } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
             std::string key = key_.cast<std::string>();
             valobj = xdbGetByBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length()));
-
         } else {
             throw py::type_error("invalid key type");
         }
@@ -94,19 +95,20 @@ public:
     }
 
     auto has(py::object key_) -> bool {
+        bool ret;
         if (py::isinstance<py::int_>(key_)) {
             uint64_t key = key_.cast<uint64_t>();
-            bool ret = static_cast<bool>(xdbHasInt(_db, key));
-            return ret;
+            ret = static_cast<bool>(xdbHasInt(_db, key));
 
         } else if (py::isinstance<py::bytes>(key_) || py::isinstance<py::str>(key_)) {
             std::string key = key_.cast<std::string>();
-            bool ret = static_cast<bool>(xdbHasBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length())));
-            return ret;
+            ret = static_cast<bool>(xdbHasBytes(_db, key.c_str(), static_cast<xobjlen_t>(key.length())));
 
         } else {
             throw py::type_error("invalid key type");
         }
+
+        return ret;
     }
 
     auto remove(py::object key_) -> void {
